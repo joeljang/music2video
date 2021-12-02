@@ -1025,4 +1025,19 @@ for a in range(len(audio_lst)):
             for im in tqdm(frames):
                 im.save(p.stdin, 'PNG')
             p.stdin.close()
-            p.wait()     
+            p.wait()
+
+if args.make_video: 
+    mp4_files = [file for file in os.listdir(args.output) if file.endswith('.mp4')]
+    mp4_files.sorted()
+    with open('list-of-files.txt', 'w') as f: 
+        for file in mp4_files: 
+            f.write(f"file {file}\n")
+    
+    output_file = "output.ts"
+    os.system(f'ffmpeg -f concat -safe 0 -i list-of-files.txt -c copy {output_file}')
+
+    import ffmpeg
+    video = ffmpeg.input(output_file)
+    audio = ffmpeg.input(args.ap)
+    ffmpeg.concat(video, audio, v=1, a=1).output('output.mp4', strict='-2').run()
