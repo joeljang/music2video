@@ -751,6 +751,8 @@ for i in range(lst_length):
     
 output_dir = [args.output]
 
+promps_list = ["cat", "dog", "tiger", "elephant", "shark"]
+
 #Looping to create segments of mp4 files
 for a in range(len(audio_lst)):
     #Randomly initializing seed in each video clip
@@ -761,12 +763,17 @@ for a in range(len(audio_lst)):
     
     pMs = []
     # CLIP tokenize/encode   
-    if args.prompts:
-        for prompt in args.prompts:
-            txt, weight, stop = split_prompt(prompt)
-            embed = perceptor.encode_text(clip.tokenize(txt).to(device)).float()
-            print(embed.shape)
-            pMs.append(Prompt(embed, weight, stop).to(device))
+    prompt = promps_list[int(a%5)]
+    txt, weight, stop = split_prompt(prompt)
+    embed = perceptor.encode_text(clip.tokenize(txt).to(device)).float()
+    print(embed.shape)
+    pMs.append(Prompt(embed, weight, stop).to(device))
+    #if args.prompts:
+    #    for prompt in args.prompts:
+    #        txt, weight, stop = split_prompt(prompt)
+    #        embed = perceptor.encode_text(clip.tokenize(txt).to(device)).float()
+    #        print(embed.shape)
+    #        pMs.append(Prompt(embed, weight, stop).to(device))
             
     # WavCLIP embedding
     audio = audio_lst[a]
