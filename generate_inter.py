@@ -785,17 +785,45 @@ if args.lyrics:
             iterations_num.append((seg_length/2) * args.iterations_per_second)
             iterations_num.append((seg_length/2) * args.iterations_per_second)
 else:
-    lst_length = int(total_seconds // args.video_length) + 1
-    per_interval = args.video_length * sr
-
+    tempo, beats = librosa.beat.beat_track(y=audio, sr=sr)
+    spec = librosa.feature.melspectrogram(y=audio, sr=sr, n_mels=128, fmax=8000, hop_length=512)
+    # get mean power at each time point
+    specm=np.mean(spec,axis=0)
+    # normalize mean power between 0-1
+    specm=(specm-np.min(specm))/np.ptp(specm)
+    
+    lst_length = len(beats) - 1
+    beats = beats * 512 # indexed audio before sampling
     for i in range(lst_length):
         if i < (lst_length - 1):
-            audio_seg = audio[int(i * per_interval):int((i+1)* per_interval)]
-        else:
-            audio_seg = audio[int(i * per_interval):] 
-        audio_lst.append(audio_seg)   
-        audio_length.append(args.video_length) 
-        iterations_num.append(args.video_length * args.iterations_per_second)
+            audio_seg = audio[beats[i]:beats[i+1]]
+            length = beats[i+1] - beats[i]
+            volume = specm[(beats[i]//512):(beats[i+1]//512)]
+        else: 
+            audio_seg = audio[beats[i]:]
+            length = len(audio) - beats[i]
+            volume = specm[(beats[i]//512):]
+        
+        audio_lst.append(audio_seg)
+
+        length = length / sr
+        audio_length.append(length)
+        max_volume = np.max(volume)
+        iter_per_second = 10 + 110 *max_volume
+        print(iter_per_second)
+        iterations_num.append(int(length * iter_per_second))
+    print(np.sum(iterations_num))
+    # lst_length = int(total_seconds // args.video_length) + 1
+    # per_interval = args.video_length * sr
+
+    # for i in range(lst_length):
+    #     if i < (lst_length - 1):
+    #         audio_seg = audio[int(i * per_interval):int((i+1)* per_interval)]
+    #     else:
+    #         audio_seg = audio[int(i * per_interval):] 
+    #     audio_lst.append(audio_seg)   
+    #     audio_length.append(args.video_length) 
+    #     iterations_num.append(args.video_length * args.iterations_per_second)
         
 output_dir = [args.output]
 
@@ -1010,7 +1038,7 @@ for a in range(len(audio_length)):
         #length = args.video_length # Desired time of the video in seconds
 
         min_fps = 10
-        max_fps = 60
+        max_fps = 120
 
         total_frames = last_frame-init_frame
 
@@ -1051,7 +1079,7 @@ for a in range(len(audio_length)):
         else:
             # CPU
             fps = np.clip(total_frames/length,min_fps,max_fps)
-            output_file = re.compile('\.png$').sub(f'{a}.mp4', args.output)
+            output_file = re.compile('\.png$').sub(f'{a:03d}.mp4', args.output)
             try:
                 p = Popen(['ffmpeg',
                         '-y',
