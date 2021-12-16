@@ -1076,5 +1076,5 @@ if args.make_video:
 
     import ffmpeg
     video = ffmpeg.input(output_file)
-    audio = ffmpeg.input(args.ap)
+    audio = ffmpeg.input(args.audio_prompt)
     ffmpeg.concat(video, audio, v=1, a=1).output('output.mp4', strict='-2').run()
