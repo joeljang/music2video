@@ -1,6 +1,6 @@
 # music2video Overview
 
-A repo for making a music video with Wav2CLIP and VQGAN-CLIP. 
+A repo for making a AI-generated music video with Wav2CLIP and VQGAN-CLIP. 
 
 The base code was derived from [VQGAN-CLIP](https://github.com/nerdyrodent/VQGAN-CLIP)
 The CLIP embedding for audio was derived from [Wav2CLIP](https://github.com/descriptinc/lyrebird-wav2clip)
@@ -71,16 +71,26 @@ See <https://github.com/CompVis/taming-transformers#overview-of-pretrained-model
 By default, the model .yaml and .ckpt files are expected in the `checkpoints` directory.
 See <https://github.com/CompVis/taming-transformers> for more information on datasets and models.
 
-## Run
+## Making the music video
 
-To generate video from music, specify your music as shown in the example below:
+To generate video from music, please specify your music and the following code examples can be used depending on the need. We provide a sample music file & lyrics file from Yannic Kilcher's [repo](https://github.com/yk/clip_music_video). 
+
+If you have a lyrics file with time-stamp information such as the example in 'lyrics/imagenet_song_lyrics.csv', you can make a lyrics-audio guided music video with the following command:
 
 ```sh
-python generate.py -vid -i 200 -vl 5 -o outputs/output.png -ap "music_sample/meeting_easy.wav" -gid 0
+python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -lyr "lyrics/imagenet_song_lyrics.csv" -gid 2 -ips 100
 ```
 
+As a default, we can set the frame-per-second of the through the -ips config. However, you can use the following command to dynamically vary the frame-rate based on the volumn of each video segment with the following command. (Note: using this command, you have to manually combine the video segments since there is no python module that combines video files with different frame rates). 
+
 ```sh
-python generate.py -vid -i 200 -vl 5 -o outputs2/output.png -ap "music_sample/merry_go_round.wav" -gid 0
+python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -lyr "lyrics/imagenet_song_lyrics.csv" -gid 2
+```
+
+If you do not have lyrics information, you can run the following command using only audio prompts:
+
+```sh
+python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -gid 2 -ips 100
 ```
 
 
