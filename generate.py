@@ -11,7 +11,7 @@ import sys
 import os
 import wav2clip
 import librosa
-import signal
+import pandas as pd
 
 # Create the parser
 vq_parser = argparse.ArgumentParser(description='Image generation using VQGAN+CLIP')
@@ -20,9 +20,10 @@ vq_parser = argparse.ArgumentParser(description='Image generation using VQGAN+CL
 vq_parser.add_argument("-p",    "--prompts", type=str, help="Text prompts", default=None, dest='prompts')
 vq_parser.add_argument("-ip",   "--image_prompts", type=str, help="Image prompts / target image", default=[], dest='image_prompts')
 vq_parser.add_argument("-i",    "--iterations", type=int, help="Number of iterations", default=500, dest='max_iterations')
+vq_parser.add_argument("-ips",  "--iterations_per_second", type=int, help="Number of iterations per second", default=0, dest='iterations_per_second')
 vq_parser.add_argument("-se",   "--save_every", type=int, help="Save image iterations", default=50, dest='display_freq')
 vq_parser.add_argument("-s",    "--size", nargs=2, type=int, help="Image size (width height) (default: %(default)s)", default=[512,512], dest='size')
-vq_parser.add_argument("-ii",   "--init_image", type=str, help="Initial image", default=None, dest='init_image')
+vq_parser.add_argument("-ii",   "--f", type=str, help="Initial image", default=None, dest='init_image')
 vq_parser.add_argument("-in",   "--init_noise", type=str, help="Initial noise image (pixels or gradient)", default=None, dest='init_noise')
 vq_parser.add_argument("-iw",   "--init_weight", type=float, help="Initial weight", default=0., dest='init_weight')
 vq_parser.add_argument("-m",    "--clip_model", type=str, help="CLIP model (e.g. ViT-B/32, ViT-B/16)", default='ViT-B/32', dest='clip_model')
@@ -53,6 +54,7 @@ vq_parser.add_argument("-aug",  "--augments", nargs='+', action='append', type=s
 vq_parser.add_argument("-vsd",  "--video_style_dir", type=str, help="Directory with video frames to style", default=None, dest='video_style_dir')
 vq_parser.add_argument("-cd",   "--cuda_device", type=str, help="Cuda device to use", default="cuda:0", dest='cuda_device')
 vq_parser.add_argument("-ap",   "--audio_prompt", type=str, default=None, dest='audio_prompt')
+vq_parser.add_argument("-lyr",   "--lyrics", type=str, default=None, dest='lyrics')
 vq_parser.add_argument("-sf",   "--audio_sampling_freq", type=int, default=16000, dest='audio_sampling_freq')
 vq_parser.add_argument("-gid", "--gpu_id", type=str, default=2, dest="gpu_id")
 
@@ -304,7 +306,8 @@ class Prompt(nn.Module):
 #NR: Split prompts and weights
 def split_prompt(prompt):
     vals = prompt.rsplit(':', 2)
-    vals = vals + ['', '1', '-inf'][len(vals):]
+    #vals = vals + ['', '1', '-inf'][len(vals):]
+    vals = vals + ['1', '-inf']
     return vals[0], float(vals[1]), float(vals[2])
 
 
@@ -737,108 +740,118 @@ def train(i):
 # Loading the models & Getting total video length
 wav2clip_model = wav2clip.get_model()
 audio_lst = []
+audio_length = []
+iterations_num = []
 audio, sr = librosa.load(args.audio_prompt, sr=args.audio_sampling_freq)
 total_seconds = int(len(audio) // sr)
-# print(len(audio)) # 3624125   total seconds : 226.5s
-lst_length = int(total_seconds // args.video_length) + 1
-# print(lst_length) # 46
-per_interval = args.video_length * sr 
+#Loading the lyrics
+if args.lyrics:
+    df = pd.read_csv(args.lyrics)
+    lyrics_cp = []
+    lyrics = []
 
-spec = librosa.feature.melspectrogram(y=audio, sr=sr, n_mels=128, fmax=8000, hop_length=400)
+    for index,row in df.iterrows():
+        ts = row['timestamp']
+        txt = str(row['text'])
+        ts = ts.split(':')
+        minute = int(ts[0])
+        sec = int(ts[1])
+        ts = (sec + (60*minute))
+        print(ts)
+        lyrics_cp.append(ts)
+        lyrics.append(txt)
+
+    lyrics_num = len(lyrics)
+    print(f'number of lyrics blocks : {lyrics_num}')
+
+tempo, beats = librosa.beat.beat_track(y=audio, sr=sr)
+spec = librosa.feature.melspectrogram(y=audio, sr=sr, n_mels=128, fmax=8000, hop_length=512)
 # get mean power at each time point
 specm=np.mean(spec,axis=0)
 # normalize mean power between 0-1
 specm=(specm-np.min(specm))/np.ptp(specm)
 
-# concatenate generated videos and audio
-def concatenate_videos():
-    mp4_files = [file for file in os.listdir(args.output.split("/")[0]) if file.endswith('.mp4')] 
-    mp4_files.sort()
-    with open('list-of-files.txt', 'w') as f: 
-        for file in mp4_files: 
-            f.write(f"file {file}\n")
-    output_file = "output.ts"
-    os.system(f'ffmpeg -f concat -safe 0 -i list-of-files.txt -c copy {output_file}')
+lst_length = len(beats) - 1
+beats = beats * 512 # indexed audio before sampling
 
-    import ffmpeg
-    video = ffmpeg.input(output_file)
-    audio = ffmpeg.input(args.audio_prompt)
-    ffmpeg.concat(video, audio, v=1, a=1).output('output.mp4', strict='-2').run()
-
-def signal_handler(sig, frame):
-    if args.make_video: 
-        concatenate_videos()
-    sys.exit(0)
-# CTRL-C detection 
-signal.signal(signal.SIGINT, signal_handler)
-
-tempo, beats = librosa.beat.beat_track(y=audio, sr=sr)
-beats = beats * 512
-print(beats)
-beats_per_interval = len(beats) // lst_length
-
+length_cum = 0
 for i in range(lst_length):
     if i < (lst_length - 1):
-        audio_seg = audio[int(beats[i * beats_per_interval]):int(beats[(i+1)* beats_per_interval])]
-    else:
-        audio_seg = audio[int(beats[i * beats_per_interval]):] 
-    audio_lst.append(audio_seg)    
+        audio_seg = audio[beats[i]:beats[i+1]]
+        length = beats[i+1] - beats[i]
+        volume = specm[(beats[i]//512):(beats[i+1]//512)]
+    else: 
+        audio_seg = audio[beats[i]:]
+        length = len(audio) - beats[i]
+        volume = specm[(beats[i]//512):]
     
+    audio_lst.append(audio_seg)
+
+    length = length / sr
+    audio_length.append(length)
+    max_volume = np.max(volume)
+    if args.iterations_per_second!=0:
+        iter_per_second = args.iterations_per_second
+    else:
+        iter_per_second = 10 + 110 *max_volume
+    length_cum+=length
+    iterations_num.append(int(length * iter_per_second))
+print(np.sum(iterations_num))
+
 output_dir = [args.output]
 
-promps_list = ["cat", "dog", "tiger", "elephant", "shark"]
-timestamp = int(40 * args.video_length)
+lyrics_index = 0
+
+current_accum = 0 #Accumulating length of audios
+prev_accum = 0 
 #Looping to create segments of mp4 files
-for a in range(len(audio_lst)):
+for a in range(len(audio_length)):
+    text_turn = False
     #Randomly initializing seed in each video clip
     seed = torch.seed()
-
     torch.manual_seed(seed)
-    print('Using seed:', seed)
-
-    volume = specm[a*timestamp:(a+1)*timestamp]
-    
     pMs = []
-    # CLIP tokenize/encode   
-    prompt = promps_list[int(a%5)]
-    txt, weight, stop = split_prompt(prompt)
-    embed = perceptor.encode_text(clip.tokenize(txt).to(device)).float()
-    print(embed.shape) # [1, 512]
-    pMs.append(Prompt(embed, weight, stop).to(device))
-    #if args.prompts:
-    #    for prompt in args.prompts:
-    #        txt, weight, stop = split_prompt(prompt)
-    #        embed = perceptor.encode_text(clip.tokenize(txt).to(device)).float()
-    #        print(embed.shape)
-    #        pMs.append(Prompt(embed, weight, stop).to(device))
-            
-    # WavCLIP embedding
-    audio = audio_lst[a]
-    print(audio.shape) #[80000, ]
-    embed = torch.from_numpy(wav2clip.embed_audio(audio, wav2clip_model)).to(device)
-    pMs.append(Prompt(embed, 1.0+np.mean(volume), float("-inf")).to(device))
+    if args.lyrics:
+        if lyrics_index < lyrics_num:
+            lyric_timestamp = lyrics_cp[lyrics_index]
+            lyrics_text = lyrics[lyrics_index]
+            len = audio_length[a]
+            current_accum += len
+            if (lyric_timestamp >= prev_accum) and (lyric_timestamp <= current_accum):
+                text_turn = True
+                lyrics_index+=1
+            prev_accum = current_accum
+
+    if text_turn:
+        # CLIP tokenize/encode
+        prompt = lyrics_text
+        txt, weight, stop = split_prompt(prompt)
+        embed = perceptor.encode_text(clip.tokenize(txt).to(device)).float()
+        pMs.append(Prompt(embed, weight, stop).to(device))
+    else:
+        # WavCLIP embedding
+        audio = audio_lst[a]
+        print(audio.shape)
+        embed = torch.from_numpy(wav2clip.embed_audio(audio, wav2clip_model)).to(device)
+        pMs.append(Prompt(embed, float(1.0), float("-inf")).to(device))
     
     if a!=0:    
         # Initial Image embedding
-        for prompt in output_dir:
-            path, weight, stop = split_prompt(prompt)
-            img = Image.open(path)
-            pil_image = img.convert('RGB')
-            img = resize_image(pil_image, (sideX, sideY))
-            batch = make_cutouts(TF.to_tensor(img).unsqueeze(0).to(device))
-            embed = perceptor.encode_image(normalize(batch)).float()
-            pMs.append(Prompt(embed, weight, stop).to(device))    
-
+        prompt = 'outputs/output.png'
+        path, weight, stop = split_prompt(prompt)
+        img = Image.open(path)
+        pil_image = img.convert('RGB')
+        img = resize_image(pil_image, (sideX, sideY))
+        batch = make_cutouts(TF.to_tensor(img).unsqueeze(0).to(device))
+        embed = perceptor.encode_image(normalize(batch)).float()
+        pMs.append(Prompt(embed, weight, stop).to(device))    
+        
 
     i = 0 # Iteration counter
     j = 0 # Zoom video frame counter
     p = 1 # Phrase counter
     smoother = 0 # Smoother counter
     this_video_frame = 0 # for video styling
-
-    # Messing with learning rate / optimisers
-    #variable_lr = args.step_size
-    #optimiser_list = [['Adam',0.075],['AdamW',0.125],['Adagrad',0.2],['Adamax',0.125],['DiffGrad',0.075],['RAdam',0.125],['RMSprop',0.02]]
 
     # Do it
     try:
@@ -912,32 +925,16 @@ for a in range(len(audio_lst)):
                         opt = get_opt(args.optimiser, variable_lr)
                         '''
                         
-                        p += 1
-                
-                '''
-                if smoother > 0:
-                    if smoother == 1:
-                        opt = get_opt(args.optimiser, args.step_size)
-                    smoother -= 1
-                '''
-                
-                '''
-                # Messing with learning rate / optimisers
-                if i % 225 == 0 and i > 0:
-                    variable_optimiser_item = random.choice(optimiser_list)
-                    variable_optimiser = variable_optimiser_item[0]
-                    variable_lr = variable_optimiser_item[1]
-                    
-                    opt = get_opt(variable_optimiser, variable_lr)
-                    print("New opt: %s, lr= %f" %(variable_optimiser,variable_lr)) 
-                '''
-                
+                        p += 1             
 
                 # Training time
+                if i==1 and a>0:
+                    pMs.pop() #Getting rid of initial image prompt after first iteration
                 train(i)
                 
                 # Ready to stop yet?
-                if i == args.max_iterations:
+                if i == iterations_num[a]:
+                #if i == args.max_iterations:
                     if not args.video_style_dir:
                         # we're done
                         break
@@ -996,12 +993,12 @@ for a in range(len(audio_lst)):
             last_frame = j
         else:
             last_frame = i  # This will raise an error if that number of frames does not exist.
-
-        # length = args.video_length # Desired time of the video in seconds
-        length = audio.shape[0] / sr
+        
+        length = audio_length[a]
+        #length = args.video_length # Desired time of the video in seconds
 
         min_fps = 10
-        max_fps = 60
+        max_fps = 120
 
         total_frames = last_frame-init_frame
 
@@ -1065,5 +1062,19 @@ for a in range(len(audio_lst)):
             p.stdin.close()
             p.wait()
 
+if args.make_video: 
+    output = (args.output.split('/'))[0]
+    mp4_files = [file for file in os.listdir(output) if file.endswith('.mp4')]
+    mp4_files.sort()
+    with open('list-of-files.txt', 'w') as f: 
+        for file in mp4_files: 
+            file = output+'/'+file
+            f.write(f"file {file}\n")
+    
+    output_file = "output.ts"
+    os.system(f'ffmpeg -f concat -safe 0 -i list-of-files.txt -c copy {output_file}')
 
-concatenate_videos()
+    import ffmpeg
+    video = ffmpeg.input(output_file)
+    audio = ffmpeg.input(args.ap)
+    ffmpeg.concat(video, audio, v=1, a=1).output('output.mp4', strict='-2').run()
