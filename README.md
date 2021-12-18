@@ -5,14 +5,9 @@ A repo for making a AI-generated music video from any song with Wav2CLIP and VQG
 The base code was derived from [VQGAN-CLIP](https://github.com/nerdyrodent/VQGAN-CLIP)
 The CLIP embedding for audio was derived from [Wav2CLIP](https://github.com/descriptinc/lyrebird-wav2clip)
 
-Environment:
+## Sample
 
-* Tested on Ubuntu 20.04
-* GPU: Nvidia RTX 3090
-* Typical VRAM requirements:
-  * 24 GB for a 900x900 image
-  * 10 GB for a 512x512 image
-  * 8 GB for a 380x380 image
+A sample of a music video created with this repository is available at [this youtube link](https://youtu.be/CaS-ruEiUcg)
 
 ## Set up
 
