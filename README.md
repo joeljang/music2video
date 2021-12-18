@@ -8,6 +8,10 @@ The CLIP embedding for audio was derived from [Wav2CLIP](https://github.com/desc
 ## Sample
 
 A sample of a music video created with this repository is available at [this youtube link](https://youtu.be/CaS-ruEiUcg)
+Here is a sample of snapshots in a generated music-video with its lyrics:
+![sample](https://user-images.githubusercontent.com/41067235/146651217-6fee9676-42a6-4359-9c5b-49beef42c6c9.png)
+
+You can make one with your own song too!
 
 ## Set up
 
