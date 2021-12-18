@@ -93,7 +93,7 @@ If you do not have lyrics information, you can run the following command using o
 python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -gid 2 -ips 100
 ```
 
-If there was an error with any of the above commands during merging of the video segments, please use combine_mp4.py to separately concat the video segments from the output directory.
+If there was an error with any of the above commands during merging of the video segments, please use combine_mp4.py to separately concat the video segments from the output directory or download the video segments from output directory and manually merge them using video editing software.
 
 ## Citations
 
