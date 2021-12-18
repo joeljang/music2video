@@ -1,18 +1,13 @@
 # music2video Overview
 
-A repo for making a AI-generated music video with Wav2CLIP and VQGAN-CLIP. 
+A repo for making a AI-generated music video from any song with Wav2CLIP and VQGAN-CLIP. 
 
 The base code was derived from [VQGAN-CLIP](https://github.com/nerdyrodent/VQGAN-CLIP)
 The CLIP embedding for audio was derived from [Wav2CLIP](https://github.com/descriptinc/lyrebird-wav2clip)
 
-Environment:
+## Sample
 
-* Tested on Ubuntu 20.04
-* GPU: Nvidia RTX 3090
-* Typical VRAM requirements:
-  * 24 GB for a 900x900 image
-  * 10 GB for a 512x512 image
-  * 8 GB for a 380x380 image
+A sample of a music video created with this repository is available at [this youtube link](https://youtu.be/CaS-ruEiUcg)
 
 ## Set up
 
@@ -81,10 +76,10 @@ If you have a lyrics file with time-stamp information such as the example in 'ly
 python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -lyr "lyrics/imagenet_song_lyrics.csv" -gid 2 -ips 100
 ```
 
-As a default, we can set the frame-per-second of the through the -ips config. However, you can use the following command to dynamically vary the frame-rate based on the volumn of each video segment with the following command. (Note: using this command, you have to manually combine the video segments since there is no python module that combines video files with different frame rates). 
+To interpolate between audio representation and text representation, use to following code (gives a more "music video" feeling) 
 
 ```sh
-python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -lyr "lyrics/imagenet_song_lyrics.csv" -gid 2
+python generate_interpolate.py -vid -ips 100 -o outputs/output.png -ap "imagenet_song.mp3" -lyr "lyrics/imagenet_song_lyrics.csv" -gid 0
 ```
 
 If you do not have lyrics information, you can run the following command using only audio prompts:
@@ -93,6 +88,7 @@ If you do not have lyrics information, you can run the following command using o
 python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -gid 2 -ips 100
 ```
 
+If there was an error with any of the above commands during merging of the video segments, please use combine_mp4.py to separately concat the video segments from the output directory or download the video segments from output directory and manually merge them using video editing software.
 
 ## Citations
 
