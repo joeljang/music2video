@@ -76,10 +76,10 @@ If you have a lyrics file with time-stamp information such as the example in 'ly
 python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -lyr "lyrics/imagenet_song_lyrics.csv" -gid 2 -ips 100
 ```
 
-As a default, we can set the frame-per-second of the through the -ips config. However, you can use the following command to dynamically vary the frame-rate based on the volumn of each video segment with the following command. (Note: using this command, you have to manually combine the video segments since there is no python module that combines video files with different frame rates). 
+To interpolate between audio representation and text representation, use to following code (gives a more "music video" feeling) 
 
 ```sh
-python generate.py -vid -o outputs/output.png -ap "imagenet_song.mp3" -lyr "lyrics/imagenet_song_lyrics.csv" -gid 2
+python generate_interpolate.py -vid -ips 100 -o outputs/output.png -ap "imagenet_song.mp3" -lyr "lyrics/imagenet_song_lyrics.csv" -gid 0
 ```
 
 If you do not have lyrics information, you can run the following command using only audio prompts:
