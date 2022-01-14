@@ -5,6 +5,8 @@ A repo for making a AI-generated music video from any song with Wav2CLIP and VQG
 The base code was derived from [VQGAN-CLIP](https://github.com/nerdyrodent/VQGAN-CLIP)
 The CLIP embedding for audio was derived from [Wav2CLIP](https://github.com/descriptinc/lyrebird-wav2clip)
 
+A technical paper describing the mechanism is provide in the following link: [https://arxiv.org/abs/2201.03809](https://arxiv.org/abs/2201.03809)
+
 ## Sample
 
 A sample of a music video created with this repository is available at [this youtube link](https://youtu.be/CaS-ruEiUcg)
