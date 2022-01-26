@@ -7,6 +7,16 @@ The CLIP embedding for audio was derived from [Wav2CLIP](https://github.com/desc
 
 A technical paper describing the mechanism is provide in the following link: [Music2Video: Automatic Generation of Music Video with fusion of audio and text](https://arxiv.org/abs/2201.03809)
 
+The citation for the technical paper is provided below:
+```bibtex
+@article{jang2022music2video,
+  title={Music2Video: Automatic Generation of Music Video with fusion of audio and text},
+  author={Jang, Joel and Shin, Sumin and Kim, Yoonjeon},
+  journal={arXiv preprint arXiv:2201.03809},
+  year={2022}
+}
+```
+
 ## Sample
 
 A sample of a music video created with this repository is available at [this youtube link](https://youtu.be/CaS-ruEiUcg)
